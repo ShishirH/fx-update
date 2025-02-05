@@ -1,4 +1,4 @@
-import {MatchData} from "@/app/[...catchAll]/utils";
+import {MatchData} from "@/app/utils/utils";
 
 const styles: { [key: string]: React.CSSProperties } = {
     container: {
@@ -9,9 +9,15 @@ const styles: { [key: string]: React.CSSProperties } = {
         display: 'flex',
         flexDirection: 'column',
     },
-    matchEntry: {
+    buyEntry: {
         display: 'flex',
-        gap: '10px'
+        gap: '10px',
+        color: 'green'
+    },
+    sellEntry: {
+        display: 'flex',
+        gap: '10px',
+        color: 'red'
     },
     stickyButtonContainer: {
         position: 'absolute',
@@ -41,16 +47,19 @@ interface MatchViewProps {
 const MatchView:React.FC<MatchViewProps> = ({matchInfo}) => {
     return (
         <div style={styles.container}>
+            <h3> Match View </h3>
             {matchInfo && matchInfo.length > 0 ? (
                 <div>
-                    {matchInfo.map((info, index) => (
-                        <div style={styles.matchEntry} key={index}>
-                            <p> { info.timestamp } </p>
-                            <p> { info.productId } </p>
-                            <p> { info.size } </p>
-                            <p> { info.price } </p>
-                        </div>
-                    ))}
+                    {matchInfo.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        .slice(0, 100)
+                        .map((info, index) => (
+                            <div style={(info.side === "buy") ? styles.buyEntry : styles.sellEntry} key={index}>
+                                <p> {info.timestamp} </p>
+                                <p> {info.productId} </p>
+                                <p> {info.size} </p>
+                                <p> {info.price} </p>
+                            </div>
+                        ))}
                 </div>
             ) : null}
         </div>
