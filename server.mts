@@ -2,6 +2,7 @@ import {createServer} from 'http';
 import {parse} from 'url';
 import next from 'next';
 import WebSocket, {WebSocketServer} from 'ws';
+import dotenv from 'dotenv';
 
 // TODO - move to file
 const SUPPORTED_PRODUCTS: string[] = [
@@ -20,8 +21,10 @@ const CHANNELS: string[] = [
 const app = next({dev: true});
 const handle = app.getRequestHandler();
 
-const PORT = 3000;
-const coinBaseWs = new WebSocket('wss://ws-feed-public.sandbox.exchange.coinbase.com');
+dotenv.config();
+
+const PORT = process.env.PORT || 3000;
+const coinBaseWs = new WebSocket(process.env.COINBASE_URL || 'wss://ws-feed-public.sandbox.exchange.coinbase.com');
 
 interface UserCurrencySockets {
     [userId: string]: {
@@ -58,6 +61,7 @@ app.prepare().then(() => {
 
     socketServer.on('connection', (connectedUser: WebSocket) => {
         connectedUser.onmessage = (event) => {
+            // @ts-ignore
             const data = JSON.parse(event.data);
 
             if (data.type === 'initialize') {

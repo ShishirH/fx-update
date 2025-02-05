@@ -9,6 +9,15 @@ import SystemStatus from "@/app/components/SystemStatus";
 import {useRouter} from "next/router";
 import {usePathname} from "next/navigation";
 
+const styles: { [key: string]: React.CSSProperties } = {
+    container: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        backgroundColor: 'mintcream',
+    },
+}
+
 const Coinbase = () => {
     const [priceData, setPriceData] = useState<ProductToOrderBook>({});
     const [subscribedList, setSubscribedList] = useState<string[]>(SUPPORTED_PRODUCTS);
@@ -181,7 +190,7 @@ const Coinbase = () => {
     }, [])
 
     return (
-        <div>
+        <div style={styles.container}>
             <StickySideButtonContainer
                 buttonList={SUPPORTED_PRODUCTS}
                 subscribedList={subscribedList}
