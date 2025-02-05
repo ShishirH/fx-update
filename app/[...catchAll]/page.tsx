@@ -2,10 +2,10 @@
 
 import {useEffect, useState} from "react";
 import {MatchData, ProductToOrderBook, SUPPORTED_PRODUCTS} from "@/app/utils/utils";
-import PriceView from "@/app/[...catchAll]/PriceView";
-import StickySideButtonContainer from "@/app/[...catchAll]/StickySideButtonContainer";
-import MatchView from "@/app/[...catchAll]/MatchView";
-import SystemStatus from "@/app/[...catchAll]/SystemStatus";
+import PriceView from "@/app/components/PriceView";
+import StickySideButtonContainer from "@/app/components/StickySideButtonContainer";
+import MatchView from "@/app/components/MatchView";
+import SystemStatus from "@/app/components/SystemStatus";
 import {useRouter} from "next/router";
 import {usePathname} from "next/navigation";
 
@@ -27,8 +27,7 @@ const Coinbase = () => {
 
     // @ts-expect-error
     function handleSubscriptions(data) {
-        const currencyList = data.channels[0]["product_ids"];
-        console.log("subscribedList ", currencyList);
+        const currencyList = data.currencyList;
         setSubscribedList(currencyList);
         setSelectedCurrency(currencyList[0]);
     }
@@ -36,6 +35,7 @@ const Coinbase = () => {
     function updateSubscription(buttonName: string) {
         const payload = {
             "type": "",
+            "user": pathname,
             buttonName
         };
 
@@ -117,6 +117,21 @@ const Coinbase = () => {
         })
     }
 
+    // @ts-expect-error
+    function handleMatchData(data) {
+        const matchData: MatchData = {
+            productId: data.product_id,
+            price: data.price,
+            size: data.size,
+            timestamp: data.time,
+            side: data.side,
+        };
+
+        setMatchInfo((prevState) => {
+            return [...prevState, matchData];
+        })
+    }
+
     useEffect(() => {
         const ws = new WebSocket(url);
         setWebSocket(ws);
@@ -136,17 +151,7 @@ const Coinbase = () => {
             }
 
             if (data.type === "match") {
-                const matchData: MatchData = {
-                    productId: data.product_id,
-                    price: data.price,
-                    size: data.size,
-                    timestamp: data.time,
-                    side: data.side,
-                };
-
-                setMatchInfo((prevState) => {
-                    return [...prevState, matchData];
-                })
+                handleMatchData(data);
             }
 
             // Reference: https://docs.cdp.coinbase.com/exchange/docs/websocket-channels#level2-channel

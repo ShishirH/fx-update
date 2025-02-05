@@ -1,7 +1,7 @@
-import { createServer } from 'http';
-import { parse } from 'url';
+import {createServer} from 'http';
+import {parse} from 'url';
 import next from 'next';
-import WebSocket, { WebSocketServer } from 'ws';
+import WebSocket, {WebSocketServer} from 'ws';
 
 // TODO - move to file
 const SUPPORTED_PRODUCTS: string[] = [
@@ -23,10 +23,6 @@ const handle = app.getRequestHandler();
 const PORT = 3000;
 const coinBaseWs = new WebSocket('wss://ws-feed-public.sandbox.exchange.coinbase.com');
 
-// For each currency, have a list of websockets subscribed
-interface CurrencySockets {
-    [currency: string]: WebSocket[];
-}
 interface UserCurrencySockets {
     [userId: string]: {
         currencyList: string[],
@@ -40,12 +36,12 @@ const subscribeMessage = {
     "product_ids": SUPPORTED_PRODUCTS
 };
 
-function pushUpdateToUsers(currencySockets: CurrencySockets, data) {
-    Object.keys(currencySockets).forEach((product) => {
-        if (currencySockets[product].length > 0) {
-            currencySockets[product].forEach((user) => {
-                user.send(JSON.stringify(data));
-            })
+function pushUpdateToUsers(userCurrencySockets: UserCurrencySockets, data) {
+    Object.keys(userCurrencySockets).forEach((user) => {
+        if (userCurrencySockets[user].currencyList && userCurrencySockets[user].websocket) {
+            if (userCurrencySockets[user].currencyList.includes(data.product_id)) {
+                userCurrencySockets[user].websocket.send(JSON.stringify(data));
+            }
         }
     });
 }
@@ -58,7 +54,7 @@ app.prepare().then(() => {
 
     const socketServer = new WebSocketServer({ server });
 
-    const currencySockets: CurrencySockets = {};
+    const userCurrencySockets: UserCurrencySockets = {};
 
     socketServer.on('connection', (connectedUser: WebSocket) => {
         connectedUser.onmessage = (event) => {
@@ -66,42 +62,59 @@ app.prepare().then(() => {
 
             if (data.type === 'initialize') {
                 // New user. Subscribe to everything by default
-                SUPPORTED_PRODUCTS.forEach((product) => {
-                    if (!currencySockets[product]) {
-                        currencySockets[product] = [];
+                let user = data.user;
+
+                if (!(user in userCurrencySockets)) {
+                    userCurrencySockets[user] = {
+                        currencyList: SUPPORTED_PRODUCTS,
+                        websocket: connectedUser,
+                    };
+                } else {
+                    // User was already initialized before. Just update websocket
+                    userCurrencySockets[user].websocket = connectedUser;
+                    let subscribedList = {
+                        "type": "subscriptions",
+                        currencyList: userCurrencySockets[user].currencyList
                     }
-                    currencySockets[product].push(connectedUser);
-                })
+                    userCurrencySockets[user].websocket.send(JSON.stringify(data));
+                }
             } else if (data.type === 'unsubscribe') {
-                //console.log("unsubscribe from user: ");
-                currencySockets[data.buttonName] = currencySockets[data.buttonName].filter((user) => user !== connectedUser);
+                let user = data.user;
+                console.log("user is: ", user);
+                console.log(userCurrencySockets);
+                if (userCurrencySockets[user]) {
+                    let currencyArray = userCurrencySockets[user].currencyList;
+                    currencyArray = currencyArray.filter((currency) => currency !== data.buttonName);
+                    userCurrencySockets[user].currencyList = currencyArray;
+                }
             } else if (data.type === 'subscribe') {
-                currencySockets[data.buttonName].push(connectedUser);
+                let user = data.user;
+                if (userCurrencySockets[user]) {
+                    userCurrencySockets[user].currencyList.push(data.buttonName);
+                }
             }
         }
 
         connectedUser.on('close', () => {
             // User connection lost.
-            SUPPORTED_PRODUCTS.forEach((product) => {
-                currencySockets[product] = currencySockets[product].filter((user) => user !== connectedUser);
-            });
+            console.log("user connection lost")
         });
     });
 
     coinBaseWs.onopen = () => {
         // subscribe to everything and only send updates to what user subscribes
+        console.log("coinbasews openeded")
         coinBaseWs.send(JSON.stringify(subscribeMessage));
     }
 
     coinBaseWs.onmessage = (event) => {
         const data = JSON.parse(event.data);
-
         if (data.type === 'l2update' || data.type === 'match') {
             //console.log("received l2data")
-            pushUpdateToUsers(currencySockets, data);
+            pushUpdateToUsers(userCurrencySockets, data);
         } else if (data.type === 'snapshot') {
             //console.log("received snapshot")
-            pushUpdateToUsers(currencySockets, data);
+            pushUpdateToUsers(userCurrencySockets, data);
         }
     }
 
