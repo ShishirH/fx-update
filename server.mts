@@ -49,6 +49,42 @@ function pushUpdateToUsers(userCurrencySockets: UserCurrencySockets, data) {
     });
 }
 
+function handleInitialization(data, userCurrencySockets: UserCurrencySockets, connectedUser: WebSocket) {
+    // New user. Subscribe to everything by default
+    let user = data.user;
+
+    if (!(user in userCurrencySockets)) {
+        userCurrencySockets[user] = {
+            currencyList: SUPPORTED_PRODUCTS,
+            websocket: connectedUser,
+        };
+    } else {
+        // User was already initialized before. Just update websocket
+        userCurrencySockets[user].websocket = connectedUser;
+        let subscribedList = {
+            "type": "subscriptions",
+            currencyList: userCurrencySockets[user].currencyList
+        }
+        userCurrencySockets[user].websocket.send(JSON.stringify(data));
+    }
+}
+
+function handleUnsubscribe(data, userCurrencySockets: UserCurrencySockets) {
+    let user = data.user;
+    if (userCurrencySockets[user]) {
+        let currencyArray = userCurrencySockets[user].currencyList;
+        currencyArray = currencyArray.filter((currency) => currency !== data.buttonName);
+        userCurrencySockets[user].currencyList = currencyArray;
+    }
+}
+
+function handleSubscribe(data, userCurrencySockets: UserCurrencySockets) {
+    let user = data.user;
+    if (userCurrencySockets[user]) {
+        userCurrencySockets[user].currencyList.push(data.buttonName);
+    }
+}
+
 app.prepare().then(() => {
     const server = createServer((req, res) => {
         const parsedUrl = parse(String(req.url), true, true);
@@ -65,37 +101,11 @@ app.prepare().then(() => {
             const data = JSON.parse(event.data);
 
             if (data.type === 'initialize') {
-                // New user. Subscribe to everything by default
-                let user = data.user;
-
-                if (!(user in userCurrencySockets)) {
-                    userCurrencySockets[user] = {
-                        currencyList: SUPPORTED_PRODUCTS,
-                        websocket: connectedUser,
-                    };
-                } else {
-                    // User was already initialized before. Just update websocket
-                    userCurrencySockets[user].websocket = connectedUser;
-                    let subscribedList = {
-                        "type": "subscriptions",
-                        currencyList: userCurrencySockets[user].currencyList
-                    }
-                    userCurrencySockets[user].websocket.send(JSON.stringify(data));
-                }
+                handleInitialization(data, userCurrencySockets, connectedUser);
             } else if (data.type === 'unsubscribe') {
-                let user = data.user;
-                console.log("user is: ", user);
-                console.log(userCurrencySockets);
-                if (userCurrencySockets[user]) {
-                    let currencyArray = userCurrencySockets[user].currencyList;
-                    currencyArray = currencyArray.filter((currency) => currency !== data.buttonName);
-                    userCurrencySockets[user].currencyList = currencyArray;
-                }
+                handleUnsubscribe(data, userCurrencySockets);
             } else if (data.type === 'subscribe') {
-                let user = data.user;
-                if (userCurrencySockets[user]) {
-                    userCurrencySockets[user].currencyList.push(data.buttonName);
-                }
+                handleSubscribe(data, userCurrencySockets);
             }
         }
 
@@ -113,11 +123,8 @@ app.prepare().then(() => {
 
     coinBaseWs.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === 'l2update' || data.type === 'match') {
+        if (data.type === 'l2update' || data.type === 'match' || data.type === 'snapshot') {
             //console.log("received l2data")
-            pushUpdateToUsers(userCurrencySockets, data);
-        } else if (data.type === 'snapshot') {
-            //console.log("received snapshot")
             pushUpdateToUsers(userCurrencySockets, data);
         }
     }

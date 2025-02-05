@@ -1,5 +1,18 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Fx updates with coinbase
+
+This is a project that uses a client-server model to display relevant financial data for few specified cryptocurrencies.
+
+The server uses websockets to connect with the CoinBase exchange API, and fetches data periodically (every 50ms). 
+The server can be run using `npm run dev`
+
+The client uses websockets to connect to the server, which periodically pushes any metrics which the user has been subscribed to.
+The client can be run by using `npm run build`.
+
+API reference:
+https://docs.cdp.coinbase.com/exchange/docs/websocket-channels#level2-channel
+
 ## Getting Started
 
 First, run the development server:

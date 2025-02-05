@@ -6,7 +6,6 @@ import PriceView from "@/app/components/PriceView";
 import StickySideButtonContainer from "@/app/components/StickySideButtonContainer";
 import MatchView from "@/app/components/MatchView";
 import SystemStatus from "@/app/components/SystemStatus";
-import {useRouter} from "next/router";
 import {usePathname} from "next/navigation";
 
 const styles: { [key: string]: React.CSSProperties } = {
